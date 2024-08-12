@@ -7587,7 +7587,7 @@ Function CreateMap()
 		PreventRoomOverlap(r)
 	Next
 	
-	If 0 Then 
+	If 1 Then 
 		Repeat
 			Cls
 			For x = 0 To MapWidth - 1
@@ -7632,8 +7632,10 @@ Function CreateMap()
 						Text x * 32 +2, (y) * 32 + 2,MapTemp(x, y) +" "+ MapName(x,y)
 					End If
 				Next
-			Next			
+			Next
 			
+			Color 200, 200, 200
+			Text 32 +2, (MapHeight) * 32 + 2, "Press enter to close"
 			Flip
 		Until KeyHit(28)		
 	EndIf
