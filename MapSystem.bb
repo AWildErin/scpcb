@@ -8,6 +8,54 @@ Type Materials
 	Field StepSound%
 End Type
 
+; ERIN_MAPDUMP_BEGIN
+Type MapDumpEntry
+	Field name$		; Room template name
+	Field posX%		; X coordinate
+	Field posY%		; Y corrdinate
+	Field gridType% ; Grid type as generated in the first part of the generator
+	Field roomType% ; Actual room type as gridType encompases Room2C as just room 2
+	Field roomZone%	; Zone number
+End Type
+Dim g_MapDumpArray.MapDumpEntry(18, 18)
+
+;const OutJsonPath$ = "S:/random/scp-ref/scpcb/mapdump_MyMap.json"
+Function GenerateDumpJson()
+	OutputFileHandle = WriteFile(CurrentDir$() + "/mapdump_" + RandomSeed + ".json")
+	local Qt = Chr(34)
+	local Tb = "  "
+
+	; hardcoded mapwidth/height
+	WriteLine(OutputFileHandle, "[")
+	For x = 0 To 18
+		WriteLine(OutputFileHandle, "  [")
+		For y = 0 To 18
+			local dump.MapDumpEntry = g_MapDumpArray(x,y)
+			WriteLine(OutputFileHandle, "    {")
+			WriteLine(OutputFileHandle, "      "+Chr(34)+"RoomName"+Chr(34)+": "+Chr(34)+dump\name+Chr(34)+",")
+			WriteLine(OutputFileHandle, "      "+Chr(34)+"PosX"+Chr(34)+": "+dump\posX+",")
+			WriteLine(OutputFileHandle, "      "+Chr(34)+"PosY"+Chr(34)+": "+dump\posY+",")
+			WriteLine(OutputFileHandle, "      "+Chr(34)+"GridType"+Chr(34)+": "+dump\gridType+",")
+			WriteLine(OutputFileHandle, "      "+Chr(34)+"RoomType"+Chr(34)+": "+dump\roomType+",")
+			WriteLine(OutputFileHandle, "      "+Chr(34)+"RoomZone"+Chr(34)+": "+dump\roomZone)
+			If y >= 18
+				WriteLine(OutputFileHandle, "    }")
+			Else
+				WriteLine(OutputFileHandle, "    },")
+			EndIf
+		Next
+		If x >= 18
+			WriteLine(OutputFileHandle, "  ]")
+		Else
+			WriteLine(OutputFileHandle, "  ],")
+		EndIf
+	Next
+	WriteLine(OutputFileHandle, "]")
+
+	CloseFile OutputFileHandle
+End Function
+; ERIN_MAPDUMP_END
+
 Function LoadMaterials(file$)
 	CatchErrors("Uncaught (LoadMaterials)")
 	;If Not BumpEnabled Then Return
@@ -2024,7 +2072,16 @@ Function CreateRoom.Rooms(zone%, roomshape%, x#, y#, z#, name$ = "")
 	CatchErrors("Uncaught (CreateRoom)")
 	Local r.Rooms = New Rooms
 	Local rt.RoomTemplates
-	
+
+	; ERIN_MAPDUMP_BEGIN
+	; Update some info 
+	local dump.MapDumpEntry = g_MapDumpArray(x/8,z/8)
+	dump\name = name ; This handles if we specifically wanted a room before entering this function
+	dump\roomZone = zone
+	dump\roomType = roomshape
+	g_MapDumpArray(x/8,z/8) = dump
+	; ERIN_MAPDUMP_END
+
 	r\zone = zone
 	
 	r\x = x : r\y = y : r\z = z
@@ -2089,6 +2146,12 @@ Function CreateRoom.Rooms(zone%, roomshape%, x#, y#, z#, name$ = "")
 						AddLightCones(r)
 					EndIf
 					
+					; ERIN_MAPDUMP_BEGIN
+					; Update the dump table with the random room we picked
+					dump\name = rt\Name
+					g_MapDumpArray(x/8,z/8) = dump
+					; ERIN_MAPDUMP_END
+
 					CalculateRoomExtents(r)
 					Return r	
 				End If
@@ -7355,6 +7418,22 @@ Function CreateMap()
 		
 	Next
 	
+	; ERIN_MAPDUMP_BEGIN
+	For x = 0 To MapWidth
+		For y = 0 To MapHeight
+			dump.MapDumpEntry = new MapDumpEntry
+			dump\gridType = MapTemp(x,y)
+			dump\posX = x
+			dump\posY = y
+			g_MapDumpArray(x,y) = dump
+
+
+			dump2.MapDumpEntry = g_MapDumpArray(x,y)
+			DebugLog "Array: " + x + "," + y + "    Type: " + dump2\gridType
+		Next
+	Next
+	; ERIN_MAPDUMP_END
+
 	Local MaxRooms% = 55*MapWidth/20
 	MaxRooms=Max(MaxRooms,Room1Amount[0]+Room1Amount[1]+Room1Amount[2]+1)
 	MaxRooms=Max(MaxRooms,Room2Amount[0]+Room2Amount[1]+Room2Amount[2]+1)
@@ -7582,11 +7661,15 @@ Function CreateMap()
 	
 	r = CreateRoom(0, ROOM1, 8, 800, 0, "dimension1499")
 	MapRoomID(ROOM1)=MapRoomID(ROOM1)+1
-	
+
 	For r.Rooms = Each Rooms
 		PreventRoomOverlap(r)
 	Next
-	
+
+	; ERIN_MAPDUMP_BEGIN
+	GenerateDumpJson()	
+	; ERIN_MAPDUMP_END
+
 	If 1 Then 
 		Repeat
 			Cls
@@ -8652,7 +8735,7 @@ Function PreventRoomOverlap(r.Rooms)
 		DebugLog "ROOM2 turning succesful! "+r\RoomTemplate\Name
 		Return True
 	EndIf
-	
+
 	;Room is either not a ROOM2 or the ROOM2 is still intersecting, now trying to swap the room with another of the same type
 	isIntersecting = True
 	Local temp2,x2%,y2%,rot%,rot2%
@@ -8700,7 +8783,14 @@ Function PreventRoomOverlap(r.Rooms)
 						EndIf	
 					EndIf
 				Next
-				
+
+				; Exit from the loop if we found a good spot
+				; ERIN_MAPDUMP_BEGIN
+				If isIntersecting = False then
+					Exit
+				EndIf
+				; ERIN_MAPDUMP_END
+
 				;Either the original room or the "reposition" room is intersecting, reset the position of each room to their original one
 				If isIntersecting Then
 					r\x = x*8.0
@@ -8722,7 +8812,29 @@ Function PreventRoomOverlap(r.Rooms)
 			EndIf
 		EndIf
 	Next
-	
+
+	; So in CB, isIntersecting doesn't always mean it got replaced. It can do that even when it doesn't find a specific place for it
+	; I also had to edit the above code to exit if we found a correct place to be.
+	; ERIN_MAPDUMP_BEGIN
+	Local roomX% = r\x/8
+	Local roomY% = r\z/8
+	If roomX = x2 And roomY = y2
+		Local origX% = x
+		Local origY% = y
+		Local origDump.MapDumpEntry = g_MapDumpArray(origX,origY)
+		Local origName$ = origDump\name
+
+		Local replX% = x2
+		Local replY% = y2
+		Local newDump.MapDumpEntry = g_MapDumpArray(replX, replY)
+		Local newName$ = newDump\name
+		origDump\name = newName
+		newDump\name = origName
+		g_MapDumpArray(replX, replY)= newDump
+		g_MapDumpArray(origX, origY) = origDump
+	EndIf
+	; ERIN_MAPDUMP_END
+
 	;room was able to the placed in a different spot
 	If (Not isIntersecting)
 		DebugLog "Room re-placing successful! "+r\RoomTemplate\Name
