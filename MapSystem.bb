@@ -7425,11 +7425,12 @@ Function CreateMap()
 			dump\gridType = MapTemp(x,y)
 			dump\posX = x
 			dump\posY = y
+			dump\roomZone = GetZone(y)
 			g_MapDumpArray(x,y) = dump
 
 
 			dump2.MapDumpEntry = g_MapDumpArray(x,y)
-			DebugLog "Array: " + x + "," + y + "    Type: " + dump2\gridType
+			DebugLog "Array: " + x + "," + y + "    Type: " + dump2\gridType + " RoomZone: " + dump2\roomZone
 		Next
 	Next
 	; ERIN_MAPDUMP_END
