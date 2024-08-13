@@ -8784,6 +8784,26 @@ Function PreventRoomOverlap(r.Rooms)
 					EndIf
 				Next
 
+				; ERIN_MAPDUMP_BEGIN
+				If isIntersecting = False
+					Local origX% = x
+					Local origY% = y
+					Local origDump.MapDumpEntry = g_MapDumpArray(origX,origY)
+					Local origName$ = origDump\name
+
+					Local replX% = x2
+					Local replY% = y2
+					Local newDump.MapDumpEntry = g_MapDumpArray(replX, replY)
+					Local newName$ = newDump\name
+
+					origDump\name = newName
+					newDump\name = origName
+
+					g_MapDumpArray(replX, replY)= newDump
+					g_MapDumpArray(origX, origY) = origDump
+				EndIf
+				; ERIN_MAPDUMP_END
+
 				;Either the original room or the "reposition" room is intersecting, reset the position of each room to their original one
 				If isIntersecting Then
 					r\x = x*8.0
@@ -8805,28 +8825,6 @@ Function PreventRoomOverlap(r.Rooms)
 			EndIf
 		EndIf
 	Next
-
-	; So in CB, isIntersecting doesn't always mean it got replaced. It can do that even when it doesn't find a specific place for it
-	; I also had to edit the above code to exit if we found a correct place to be.
-	; ERIN_MAPDUMP_BEGIN
-	Local roomX% = r\x/8
-	Local roomY% = r\z/8
-	If roomX = x2 And roomY = y2
-		Local origX% = x
-		Local origY% = y
-		Local origDump.MapDumpEntry = g_MapDumpArray(origX,origY)
-		Local origName$ = origDump\name
-
-		Local replX% = x2
-		Local replY% = y2
-		Local newDump.MapDumpEntry = g_MapDumpArray(replX, replY)
-		Local newName$ = newDump\name
-		origDump\name = newName
-		newDump\name = origName
-		g_MapDumpArray(replX, replY)= newDump
-		g_MapDumpArray(origX, origY) = origDump
-	EndIf
-	; ERIN_MAPDUMP_END
 
 	;room was able to the placed in a different spot
 	If (Not isIntersecting)
