@@ -8784,13 +8784,6 @@ Function PreventRoomOverlap(r.Rooms)
 					EndIf
 				Next
 
-				; Exit from the loop if we found a good spot
-				; ERIN_MAPDUMP_BEGIN
-				If isIntersecting = False then
-					Exit
-				EndIf
-				; ERIN_MAPDUMP_END
-
 				;Either the original room or the "reposition" room is intersecting, reset the position of each room to their original one
 				If isIntersecting Then
 					r\x = x*8.0
